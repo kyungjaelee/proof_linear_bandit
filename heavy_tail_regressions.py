@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import scipy.optimize
 
@@ -20,7 +21,9 @@ def _cal_ap(p):
 
 def _cal_psi(x, p):
     ap = _cal_ap(p)
-    psi = np.sign(x)*np.log(ap*(abs(x)**p) + np.sign(x)*x + 1.)
+    b = np.abs(x)
+    c = np.sign(x)
+    psi = c*np.log(ap*b**p + b + 1.)
     return psi
 
 def catoni_lin_reg(x_data, y_data, x_list, p, beta=1.):
@@ -38,8 +41,8 @@ def trunc_lin_reg(x_data, y_data, x_list, p, lam=1., beta=1.):
     A = X.T.dot(X) + lam*np.eye(dim)
     Y = np.array(y_data)
     U, s, VT = np.linalg.svd(X)
-    B = VT.T.dot(np.diag(1/np.sqrt((s**2 + lam)))).dot(VT)
-    C = VT.T.dot(np.diag(s/np.sqrt((s**2 + lam)))).dot(U[:,:dim].T)
+    B = VT.T.dot(np.diag(1/np.sqrt(s**2 + lam))).dot(VT)
+    C = VT.T.dot(np.diag(s/np.sqrt(s**2 + lam))).dot(U[:,:dim].T)
 
     weight_hat = B.dot([np.sum(np.where(np.abs(c*Y) <= beta, c*Y, 0.)) for c in C])
     est_mean_list = x_list.dot(weight_hat)
@@ -90,12 +93,14 @@ def mom_lin_reg(x_data, y_data, x_list, p, lam=1., k=10):
 
 def pro(x_data, y_data, x_list, p, lam=1., beta=1.):
     n, dim = x_data.shape    
+    
     X = np.array(x_data)
     A = X.T.dot(X) + lam*np.eye(dim)
     Y = np.array(y_data)
-
     h = x_list.dot(np.linalg.inv(A)).dot(X.T)
+    
     thrs = beta*np.sum(np.abs(h)**p,axis=1,keepdims=True)**(1./p)
-
-    est_mean_list = np.sum(thrs*_cal_psi(h*Y / thrs, p),axis=1)
+    c = h*Y / thrs    
+    d = _cal_psi(c, p)    
+    est_mean_list = np.sum(thrs*d,axis=1)
     return est_mean_list, None

@@ -1,4 +1,5 @@
 import argparse
+import time
 import numpy as np
 
 from heavy_tail_observations import BothSideWeibullNoise, BothSideParetoNoise, BothSideFrechetNoise
@@ -37,7 +38,7 @@ elif noise_type == 'frechet':
     get_observation = lambda x: x.dot(weight) + frechet_noise.sample()
     
 np.random.seed(seed)
-x_list = 20.*np.random.randn(10000,dim+1)
+x_list = 20.*np.random.randn(100,dim+1)
 mean_list = x_list.dot(weight)
 
 x_data = 5.*np.random.randn(n,dim+1)
@@ -91,13 +92,17 @@ elif optim_type == 'trunc':
         optims.append(trunc_reg)
         
 error_list = [[] for _ in range(len(optims))]
+time_list = [[] for _ in range(len(optims))]
 increments = n//10
 for step in range(10):
     samples = increments*(step+1)
     for opt_idx, (optim, optim_param, optim_name)  in enumerate(zip(optims,optim_params,optim_names)):
+        start = time.time()
         est_mean_list, w_hat = optim(*(x_data[:samples],y_data[:samples],x_list,p),**optim_param)
+        end = time.time()
         error = np.mean(np.abs(est_mean_list - mean_list))
         error_list[opt_idx].append(error)
+        time_list[opt_idx].append(end-start)
         
 filename = 'estimation_results/{:}-p{:.2f}-s{:.2f}-dim{:d}-size{:d}-{:}-seed{:d}.npy'.format(noise_type,p,scale,dim,samples,optim_type,seed)
 with open(filename,'wb') as f:
@@ -109,6 +114,7 @@ with open(filename,'wb') as f:
              optim_type=optim_type,
              optim_params=optim_params,
              optim_names=optim_names,
-             error_list=error_list
+             error_list=error_list,
+             time_list=time_list
             )
     print('Data saved at {}'.format(filename))
